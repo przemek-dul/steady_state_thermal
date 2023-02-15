@@ -1,8 +1,8 @@
 import sympy as sp
 import numpy as np
+from loguru import logger
 
-
-print("Obliczenia równania elementu...")
+logger.warning("Obliczanie symboliczne równania elementu...")
 
 u_1, u_2, u_3, u_4, u_5, u_6, u_7, u_8 = sp.symbols('u_1 u_2 u_3 u_4 u_5 u_6 u_7 u_8')
 a, s, t, b = sp.symbols('a s t b')
@@ -132,4 +132,4 @@ r_beta_2_3 = r_beta_2_3.subs(beta, Tot*h)
 r_beta_3_4 = r_beta_3_4.subs(beta, Tot*h)
 r_beta_4_1 = r_beta_4_1.subs(beta, Tot*h)
 
-print("Obliczenia równania elementu zakończone!!")
+logger.info("Obliczenie równania elementu zakończone")

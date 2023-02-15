@@ -2,9 +2,11 @@ import numpy as np
 from numpy.linalg import inv
 import sympy as sp
 import matplotlib.pyplot as plt
+from loguru import logger
 from symbolic import Kk, k_alpha_1_2, \
     k_alpha_2_3, k_alpha_3_4, k_alpha_4_1, r_beta_1_2, r_beta_2_3, r_beta_3_4, r_beta_4_1, N, rq, u
 from matplotlib.cm import ScalarMappable
+
 
 fast_Kk = np.vectorize(sp.lambdify(('a', 'b', 'k1'), Kk, 'numpy'))
 
@@ -21,18 +23,21 @@ r_beta_4_1 = np.vectorize(sp.lambdify(('a', 'b', 'Tot', 'h'), r_beta_4_1, 'numpy
 rq = np.vectorize(sp.lambdify(('a', 'b', 'q'), rq, 'numpy'))
 
 
+#Obiekt linii do tworzenia geometri i nakładania warunków brzegowych
 class Line:
     def __init__(self, p1, p2):
         self.p1 = p1
         self.p2 = p2
 
 
+#Klasa warunku brzegowego temperatury
 class Temperature_bc:
     def __init__(self, temp, line):
         self.temp = temp
         self.line = line
 
 
+#Klasa warunku brzegowego konwekcjii
 class Convection_bc:
     def __init__(self, h, temp, line):
         self.h = h
@@ -40,16 +45,19 @@ class Convection_bc:
         self.line = line
 
 
+#Klasa warunku brzegowego żródła ciepła
 class Heat_flow_bc:
     def __init__(self, q, line):
         self.q = q
         self.line = line
 
 
+#Klasa geometrii
 class Geometry:
     def __init__(self, lines):
         self.lines = lines
 
+    #Sprawdzenie czy punkt leży w geometrii
     def is_point_in_geometry(self, point):
         cnt = 0
         for line in self.lines:
@@ -77,6 +85,7 @@ class Geometry:
 
         return cnt % 2 == 1
 
+    #Dyskretyzacja geometri na podstawie stałej wielkości elementu skończonego
     def mesh(self, size):
         minX = np.min(
             [np.min(np.array([r.p1[0] for r in self.lines])), np.min(np.array([r.p2[0] for r in self.lines]))])
@@ -91,11 +100,12 @@ class Geometry:
         mesh_array = np.zeros(
             (int(abs(minY) / size) + int(abs(maxY) / size), int(abs(minX) / size) + int(abs(maxX) / size), 8))
         elementsData = []
-        print('Tworzenie siatki elementów skończonych...')
+        logger.warning("Dyskretyzacja obszaru obliczeniowego...")
         for i in np.arange(int(minY / size), int(maxY / size), 1):
             for j in np.arange(int(minX / size), int(maxX / size), 1):
                 x = j * size + size
                 y = i * size + size
+                #Sprawdzenie czy element leży w geometri
                 if self.is_point_in_geometry((x, y)) and self.is_point_in_geometry((x, y - size)) and \
                         self.is_point_in_geometry((x - size, y - size)) and self.is_point_in_geometry((x - size, y)):
                     if mesh_array[i - 1, j, -2] != 0:
@@ -137,10 +147,11 @@ class Geometry:
                     structure = [int(x) for x in structure]
                     key = {'structure': structure, 'x': j * size, 'y': i * size}
                     elementsData.append(key)
-        print('Dyskretyzacja zakończona!!')
+        logger.info("Dyskretyzacja obszaru obliczeniowego zakończona")
         return elementsData, int(np.max(mesh_array))
 
 
+#Klasa elementu skończonego
 class Element:
     def __init__(self, k, a, structure, x, y):
         self.k = k
@@ -153,6 +164,7 @@ class Element:
         self.rq = 0
 
 
+#Klasa analizy
 class Analysis:
     def __init__(self, element_size, k, geometry, boundary_conditions):
         self.k = k
@@ -174,10 +186,10 @@ class Analysis:
         self.set_bc()
         self.solution()
 
-    # Nakładanie siatki
     def meshing(self):
         data, self.nodes_number = self.geometry.mesh(self.element_size)
-        print('Nakładanie warunków brzegowych...')
+        logger.warning("Nakładanie warunków brzegowych...")
+        #Nakładania warunków brzegowych
         for element in data:
             e = Element(self.k, self.element_size * 0.001, element['structure'], element['x'], element['y'])
 
@@ -237,7 +249,7 @@ class Analysis:
                     if type(bc) == Heat_flow_bc:
                         e.rq = e.rq + rq(e.a, e.a, bc.q)
             self.elements.append(e)
-        print('Nakładanie warunków brzegowych zakończone!!!')
+        logger.info("Nakładanie warunków brzegowych zakończone")
 
     def set_bc(self):
         # Utworzenie pustych macierzy sztywności i wymuszeń
@@ -245,7 +257,7 @@ class Analysis:
         self.C_matrix = np.zeros((self.nodes_number, 1))
 
         # Obliczenie macierzy globalnej
-        print('Agregacja macierzy...')
+        logger.warning("Agregacja macierzy...")
         for e in self.elements:
 
             for k in range(0, 8):
@@ -255,6 +267,7 @@ class Analysis:
                     y = int(e.structure[i])
                     self.K_matrix[x - 1, y - 1] = self.K_matrix[x - 1, y - 1] + q
 
+            # Agragacja macierzy rq
             if type(e.rq) != int:
                 for i in range(0, 8):
                     self.C_matrix[e.structure[i] - 1, 0] = self.C_matrix[e.structure[i] - 1, 0] + e.rq[0, i]
@@ -275,22 +288,23 @@ class Analysis:
             if self.K_matrix[i, i] == 0:
                 self.K_matrix[i, i] = 1
 
-        print('Agregacja zakończona!!')
+        logger.info("Agregacja macierzy zakończona")
 
     def solution(self):
-        # Obliczenie temperatur w węzłach
-        print('Rozwiązywanie równania...')
+        logger.warning("Rozwiązywanie równań liniowych...")
         self.nodes_temps = np.linalg.solve(self.K_matrix, self.C_matrix)
-        #self.nodes_temps = inv(self.K_matrix).dot(self.C_matrix)
-        print('Rozwiązywanie gotowe!!')
+        logger.info("Obliczenia zakończone")
 
     # Informacje o siatce
     def mesh_info(self):
-        print(f"Liczba elementów: {len(self.elements)}")
-        print(f"Liczba węzłów: {self.nodes_number}")
-        print(f"Rozmiar elementu: {self.element_size} [mm]")
+        print('\n Informacje o siatce:')
+        print(f" *Liczba elementów: {len(self.elements)}")
+        print(f" *Liczba węzłów: {self.nodes_number}")
+        print(f" *Rozmiar elementu: {self.element_size}[mm]\n")
 
     def plot_results(self):
+        #Rysowanie wykresu
+        logger.warning("Rysowanie wykresu...")
         fun1 = N.dot(u.transpose())
         fun1 = np.vectorize(sp.lambdify((
             'u_1', 'u_2', 'u_3', 'u_4', 'u_5', 'u_6', 'u_7', 'u_8', 'a', 'b', 's', 't'), fun1, 'numpy'))
@@ -299,8 +313,8 @@ class Analysis:
         sm = ScalarMappable(cmap=cmap, norm=norm)
         sm.set_array([])
         for e in self.elements:
-            s = np.linspace(e.x * 0.001, e.x * 0.001 + e.a * 2, int(self.element_size / 0.1))
-            t = np.linspace(e.y * 0.001, e.y * 0.001 + e.a * 2, int(self.element_size / 0.1))
+            s = np.linspace(e.x * 0.001, e.x * 0.001 + e.a * 2, int(8000 / len(self.elements)))
+            t = np.linspace(e.y * 0.001, e.y * 0.001 + e.a * 2, int(8000 / len(self.elements)))
 
             xs = e.x * 0.001 + e.a
             ys = e.y * 0.001 + e.a
@@ -330,6 +344,7 @@ class Analysis:
                      ha='left')
         cbar.ax.set_xlabel(f"Min: {round(np.min(self.nodes_temps), 2)}", rotation=0, ha='left')
 
+        logger.info("Wyniki gotowe do wyświetlenia")
         plt.title('Rozkład temperatury w domenie')
         plt.xlabel('Odległość [mm]')
         plt.ylabel('Odległość [mm]')
