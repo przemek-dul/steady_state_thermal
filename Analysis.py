@@ -1,12 +1,10 @@
 import numpy as np
-from numpy.linalg import inv
 import sympy as sp
 import matplotlib.pyplot as plt
 from loguru import logger
 from symbolic import Kk, k_alpha_1_2, \
     k_alpha_2_3, k_alpha_3_4, k_alpha_4_1, r_beta_1_2, r_beta_2_3, r_beta_3_4, r_beta_4_1, N, rq, u
 from matplotlib.cm import ScalarMappable
-
 
 fast_Kk = np.vectorize(sp.lambdify(('a', 'b', 'k1'), Kk, 'numpy'))
 
@@ -23,21 +21,21 @@ r_beta_4_1 = np.vectorize(sp.lambdify(('a', 'b', 'Tot', 'h'), r_beta_4_1, 'numpy
 rq = np.vectorize(sp.lambdify(('a', 'b', 'q'), rq, 'numpy'))
 
 
-#Obiekt linii do tworzenia geometri i nakładania warunków brzegowych
+# Obiekt linii do tworzenia geometri i nakładania warunków brzegowych
 class Line:
     def __init__(self, p1, p2):
         self.p1 = p1
         self.p2 = p2
 
 
-#Klasa warunku brzegowego temperatury
+# Klasa warunku brzegowego temperatury
 class Temperature_bc:
     def __init__(self, temp, line):
         self.temp = temp
         self.line = line
 
 
-#Klasa warunku brzegowego konwekcjii
+# Klasa warunku brzegowego konwekcjii
 class Convection_bc:
     def __init__(self, h, temp, line):
         self.h = h
@@ -45,19 +43,19 @@ class Convection_bc:
         self.line = line
 
 
-#Klasa warunku brzegowego żródła ciepła
+# Klasa warunku brzegowego żródła ciepła
 class Heat_flow_bc:
     def __init__(self, q, line):
         self.q = q
         self.line = line
 
 
-#Klasa geometrii
+# Klasa geometrii
 class Geometry:
     def __init__(self, lines):
         self.lines = lines
 
-    #Sprawdzenie czy punkt leży w geometrii
+    # Sprawdzenie czy punkt leży w geometrii
     def is_point_in_geometry(self, point):
         cnt = 0
         for line in self.lines:
@@ -85,7 +83,7 @@ class Geometry:
 
         return cnt % 2 == 1
 
-    #Dyskretyzacja geometri na podstawie stałej wielkości elementu skończonego
+    # Dyskretyzacja geometri na podstawie stałej wielkości elementu skończonego
     def mesh(self, size):
         minX = np.min(
             [np.min(np.array([r.p1[0] for r in self.lines])), np.min(np.array([r.p2[0] for r in self.lines]))])
@@ -105,7 +103,7 @@ class Geometry:
             for j in np.arange(int(minX / size), int(maxX / size), 1):
                 x = j * size + size
                 y = i * size + size
-                #Sprawdzenie czy element leży w geometri
+                # Sprawdzenie czy element leży w geometri
                 if self.is_point_in_geometry((x, y)) and self.is_point_in_geometry((x, y - size)) and \
                         self.is_point_in_geometry((x - size, y - size)) and self.is_point_in_geometry((x - size, y)):
                     if mesh_array[i - 1, j, -2] != 0:
@@ -151,7 +149,7 @@ class Geometry:
         return elementsData, int(np.max(mesh_array))
 
 
-#Klasa elementu skończonego
+# Klasa elementu skończonego
 class Element:
     def __init__(self, k, a, structure, x, y):
         self.k = k
@@ -164,7 +162,7 @@ class Element:
         self.rq = 0
 
 
-#Klasa analizy
+# Klasa analizy
 class Analysis:
     def __init__(self, element_size, k, geometry, boundary_conditions):
         self.k = k
@@ -189,7 +187,7 @@ class Analysis:
     def meshing(self):
         data, self.nodes_number = self.geometry.mesh(self.element_size)
         logger.warning("Nakładanie warunków brzegowych...")
-        #Nakładania warunków brzegowych
+        # Nakładania warunków brzegowych
         for element in data:
             e = Element(self.k, self.element_size * 0.001, element['structure'], element['x'], element['y'])
 
@@ -303,7 +301,7 @@ class Analysis:
         print(f" *Rozmiar elementu: {self.element_size}[mm]\n")
 
     def plot_results(self):
-        #Rysowanie wykresu
+        # Rysowanie wykresu
         logger.warning("Rysowanie wykresu...")
         fun1 = N.dot(u.transpose())
         fun1 = np.vectorize(sp.lambdify((
@@ -312,9 +310,14 @@ class Analysis:
         norm = plt.Normalize(vmin=np.min(self.nodes_temps), vmax=np.max(self.nodes_temps))
         sm = ScalarMappable(cmap=cmap, norm=norm)
         sm.set_array([])
+        plt.figure(figsize=(8, 6))
         for e in self.elements:
-            s = np.linspace(e.x * 0.001, e.x * 0.001 + e.a * 2, int(8000 / len(self.elements)))
-            t = np.linspace(e.y * 0.001, e.y * 0.001 + e.a * 2, int(8000 / len(self.elements)))
+            if len(self.elements) > 1500:
+                s = np.linspace(e.x * 0.001, e.x * 0.001 + e.a * 2, 2)
+                t = np.linspace(e.y * 0.001, e.y * 0.001 + e.a * 2, 2)
+            else:
+                s = np.linspace(e.x * 0.001, e.x * 0.001 + e.a * 2, int(3000/len(self.elements)))
+                t = np.linspace(e.y * 0.001, e.y * 0.001 + e.a * 2, int(3000/len(self.elements)))
 
             xs = e.x * 0.001 + e.a
             ys = e.y * 0.001 + e.a
@@ -329,7 +332,9 @@ class Analysis:
                 nodes[0, 0], nodes[1, 0], nodes[2, 0], nodes[3, 0], nodes[4, 0], nodes[5, 0], nodes[6, 0], nodes[7, 0],
                 e.a, e.a, ss - xs, tt - ys)
 
-            plt.pcolormesh(ss * 1000, tt * 1000, temps, cmap=cmap, norm=norm)
+            plt.imshow(temps, cmap=cmap, norm=norm,
+                       extent=[np.min(ss) * 1000, np.max(ss) * 1000, np.min(tt) * 1000, np.max(tt) * 1000],
+                       origin='lower')
 
             plt.plot([e.x, e.x + self.element_size], [e.y, e.y], c='black', linewidth=0.5)
             plt.plot([e.x + self.element_size, e.x + self.element_size], [e.y, e.y + self.element_size], c='black',
@@ -348,4 +353,5 @@ class Analysis:
         plt.title('Rozkład temperatury w domenie')
         plt.xlabel('Odległość [mm]')
         plt.ylabel('Odległość [mm]')
+        plt.gca().spines[['right', 'top']].set_visible(False)
         plt.show()

@@ -22,6 +22,6 @@ bc6 = Convection_bc(h=85, temp=273+28, line=l7)
 
 bc = [bc1, bc2, bc3, bc4, bc5, bc6]
 
-a = Analysis(element_size=2.5, k=55, geometry=g, boundary_conditions=bc)
+a = Analysis(element_size=10, k=55, geometry=g, boundary_conditions=bc)
 a.mesh_info()
 a.plot_results()

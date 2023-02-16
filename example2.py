@@ -25,6 +25,6 @@ bc10 = Convection_bc(h=100, temp=273 + 20, line=Line(p1=[0, 10], p2=[0, 40]))
 
 bc = [bc1, bc2, bc3, bc4, bc5, bc6, bc7, bc8, bc9, bc10]
 
-a = Analysis(element_size=5, k=55, geometry=g, boundary_conditions=bc)
+a = Analysis(element_size=10, k=55, geometry=g, boundary_conditions=bc)
 a.mesh_info()
 a.plot_results()
