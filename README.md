@@ -1,8 +1,5 @@
 # steady_state_thermal
-Rozwinięcie projektu egzaminacyjnego. Implementacja metody elementów skończonych do obliczenia temperatury w dwuwymiarowej domenie przepływu ciepła. Przyjęto elementy kwadratowe o 8 węzłach. 
-Równania elementu zostały wyprowadzone za pomoca biblioteki sympy. Program umożliwia tworzenie prostych 
-geometrii 2d i przykładanie warunków brzegowych na jej krawędziach. Możliwe do przyjęcia warunki brzegowe to: temperatura, konwekcja, strumień ciepła.
-Utworzona siatka może posiadać jedynie elementy o jednakowym rozmiarze!!!. Wyniki analiz zgodne z Ansys.
+Expanding the exam project. Implementation of the finite element method for calculating the temperature in a two-dimensional heat flow domain. Quadratic elements with 8 nodes were used. The element equations were derived using the Sympy library. The program allows for creating simple 2D geometries and applying boundary conditions to their edges. The possible boundary conditions that can be applied are: temperature, convection, and heat flux. The created mesh can only have elements of the same size!!!. Analysis results are consistent with Ansys.
 
 ![alt text](https://github.com/DzikiCzosnek99/steady_state_thermal/blob/master/example1.png?raw=true)
 ![alt text](https://github.com/DzikiCzosnek99/steady_state_thermal/blob/master/example2.png?raw=true)
